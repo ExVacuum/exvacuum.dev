@@ -1,0 +1,10 @@
+@use "everforest";
+
+body {
+  color: everforest.$fg;
+  background-color: everforest.$bg0;
+}
+
+a {
+  color: everforest.$blue;
+}
