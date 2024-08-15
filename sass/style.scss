@@ -8,3 +8,9 @@ body {
 a {
   color: everforest.$blue;
 }
+
+.langcolor {
+  &-rust {
+    color: #CE412B;
+  }
+}

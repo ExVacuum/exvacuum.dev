@@ -1,10 +1,11 @@
 +++
 template = "index.html"
+title = "hello"
 +++
 
 # silas
 
-- ~~projects~~ (coming soon, see [github](https://github.com/exvacuum) for now)
+- [projects](@/projects/_index.md)
 - [blog](@/blog/_index.md)
 
 find me in other places

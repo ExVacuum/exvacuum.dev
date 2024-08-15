@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<a href="{{ get_url(path='@/projects/_index.md') }}"> <- back to projects</a>
+<h1 class="title">
+	{{ page.title }}
+</h1>
+<p><strong>{{ page.description }}</strong></p>
+
+{% if page.taxonomies.categories %}
+<p>category: {{ page.taxonomies.categories[0] }}</p>
+{% endif %}
+{% if page.extra.finished %}
+<p>finished: {{ page.extra.finished }}</p>
+{% endif %}
+{% if page.taxonomies.languages %}
+<p>
+	languages:
+	{% for language in page.taxonomies.languages %}
+		<span class="langcolor-{{ language }}">{{ language }}</span>
+	{% endfor %}
+</p>
+{% endif %}
+{% if page.extra.github %}
+<p>
+	github: 
+	{% for repo in page.extra.github %}
+	<a href="https://github.com/{{ repo }}" target="_blank">{{ repo }}</a>
+	{% endfor %}
+</p>
+{% endif %}
+{% if page.extra.crates %}
+<p>
+	crates.io: 
+	{% for crate in page.extra.crates %}
+	<a href="https://crates.io/crates/{{ crate }}" target="_blank">{{ crate }}</a>
+	{% endfor %}
+</p>
+{% endif %}
+<br/>
+{{ page.content | safe }}
+{% endblock content %}
