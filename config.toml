@@ -15,6 +15,7 @@ author = "Silas Bartha"
 taxonomies = [
 	{ name = "categories", render = false },
 	{ name = "languages", render = false },
+	{ name = "projects", render = false },
 ]
 
 [markdown]

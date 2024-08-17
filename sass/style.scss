@@ -9,8 +9,12 @@ a {
   color: everforest.$blue;
 }
 
+.wip-indicator {
+  color: everforest.$yellow;
+}
+
 .langcolor {
   &-rust {
-    color: #CE412B;
+    color: everforest.$orange;
   }
 }

@@ -4,8 +4,13 @@
 <a href="{{ get_url(path='@/projects/_index.md') }}"> <- back to projects</a>
 <h1 class="title">
 	{{ page.title }}
+	{% if page.extra.wip %}
+	 (<span class="wip-indicator">wip</span>)
+	{% endif %}
 </h1>
+{% if page.description %}
 <p><strong>{{ page.description }}</strong></p>
+{% endif %}
 
 {% if page.taxonomies.categories %}
 <p>category: {{ page.taxonomies.categories[0] }}</p>
@@ -39,4 +44,14 @@
 {% endif %}
 <br/>
 {{ page.content | safe }}
+{% set project = get_taxonomy_term(kind="projects", term=page.title, required=false) %}
+{% if project and project.page_count > 0 %}
+<br/>
+<p><strong>related blog posts:</strong></p>
+<ul>
+	{% for page in project.pages %}
+	<li><a href="{{ page.permalink }}">{{ page.title }}</a> ({{ page.date }})</li>
+	{% endfor %}
+</ul>
+{% endif %}
 {% endblock content %}
