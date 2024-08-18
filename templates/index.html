@@ -2,4 +2,12 @@
 
 {% block content %}
 {{ section.content | safe }}
+<br/>
+recent posts
+{% set section = get_section(path="blog/_index.md") %}
+<ul>
+	{% for page in section.pages | slice(end=5) %}
+	<li><a href="{{page.permalink}}">{{page.title}}</a> ({{page.date}})</li>
+	{% endfor %}
+</ul>
 {% endblock content %}
