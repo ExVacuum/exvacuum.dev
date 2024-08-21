@@ -11,7 +11,17 @@
 <b>{{category.name}}</b>
 <ul>
 	{% for page in category.pages %}
-	<li><a href="{{ page.permalink | safe }}">{{ page.title }}{% if page.description %}: {{ page.description }}{% endif %}</a>{% if page.extra.wip %} (<span class="wip-indicator">wip</span>){% endif %}</li>
+	<li>
+		<a href="{{ page.permalink | safe }}">
+			{{ page.title }}{% if page.description %}: {{ page.description }}{% endif %}
+		</a>
+		{% if page.extra.wip %}
+		 (<span class="wip-indicator">wip</span>)
+		{% endif %}
+		{% if page.extra.very_cool %}
+		 (<span class="rainbow_text_animated">VERY COOL</span>)
+		{% endif %}
+	</li>
 	{% endfor %}
 </ul>
 {% endfor %}

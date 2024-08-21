@@ -1,5 +1,28 @@
 @use "everforest";
 
+/// Stole this from Stack Overflow (https://stackoverflow.com/a/54702294) {{{
+
+.rainbow_text_animated {
+    background: linear-gradient(to right, everforest.$red, everforest.$orange, everforest.$yellow, everforest.$green, everforest.$blue, everforest.$purple);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: rainbow_animation 1s ease-in-out infinite;
+    background-size: 400% 100%;
+}
+
+@keyframes rainbow_animation {
+    0%,100% {
+        background-position: 0 0;
+    }
+
+    50% {
+        background-position: 100% 0;
+    }
+}
+
+/// }}}
+
 body {
   color: everforest.$fg;
   background-color: everforest.$bg0;
