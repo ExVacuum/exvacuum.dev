@@ -21,7 +21,7 @@ this plugin manages a `TerminalInput` resource which keeps track of pressed keys
 
 this plugin also has facilities for creating and rendering ratatui widgets
 
-here's an example of a dialog box and option selection widget i've implemented in my [white (I)](@/projects/white_I/index.md) project
+here's an example of a dialog box and option selection widget i've implemented in one of my WIP projects
 
 ![dialog widget](dialog.png)
 

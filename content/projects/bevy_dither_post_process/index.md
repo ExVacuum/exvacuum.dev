@@ -19,7 +19,7 @@ it can be configured with the "level" of dithering to perform (i.e. the size of 
 ![level 2](level_2.png)
 ![level 4](level_4.png)
 
-i wrote this plugin to enhance the performance of my ongoing [white (I)](@/projects/white_I/index.md) project
+i wrote this plugin to enhance the performance of my ongoing game project
 
 originally i did all the dithering on the CPU, and while it was not a huge performance drain due to the screen size being relatively small in the terminal, i figured it would be a good idea to convert it into a shader to take advantage of the GPU and parallelism
 

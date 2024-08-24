@@ -23,6 +23,6 @@ there's also an option to enable *adaptive outlines*, so that darker areas get o
 
 ![adaptive](threshold_10_adaptive.png)
 
-i created this effect to improve visual contrast in my [white (I)](@/projects/white_I/index.md) project, which is why i haven't added support for different colors
+i created this effect to improve visual contrast in my game project, which is why i haven't added support for different colors
 
 you're free to add it yourself though, probably wouldn't be too hard
