@@ -14,3 +14,4 @@ find me in other places
 - github: [exvacuum](https://github.com/exvacuum)
 - youtube: [@silasbartha](https://youtube.com/@silasbartha)
 - x: [@EXVACVVM](https://x.com/EXVACVVM)
+- mastodon: <a href="https://furry.engineer/@exvacuum" rel="me">@exvacuum@furry.engineer</a>
