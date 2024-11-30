@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8"/>
+		<title>silas</title>
+		<link rel="stylesheet" href="/style.css"/>
+		
+		  <link rel="alternate" type="application/rss+xml" title="RSS" href="https://exvacuum.dev/rss.xml">
+		
+	</head>
+	<body>
+		<section class="section">
+			<div class="container">
+				
+<a href="https://exvacuum.dev/projects/"> <- back to projects</a>
+<h1 class="title">
+	bevy_terminal_display
+	
+</h1>
+
+
+
+<p>category: bevy plugin</p>
+
+
+
+<p>
+	languages:
+	
+		<span class="langcolor-rust">rust</span>
+	
+</p>
+
+
+<p>
+	github: 
+	
+	<a href="https://github.com/exvacuum&#x2F;bevy_terminal_display" target="_blank">exvacuum&#x2F;bevy_terminal_display</a>
+	
+</p>
+
+
+<p>
+	crates.io: 
+	
+	<a href="https://crates.io/crates/bevy_terminal_display" target="_blank">bevy_terminal_display</a>
+	
+</p>
+
+<br/>
+<p>this plugin allows you to render from a camera to the terminal using <a rel="noopener" target="_blank" href="https://en.wikipedia.org/wiki/Braille_Patterns">unicode braille characters</a></p>
+<p><img src="https://exvacuum.dev/projects/bevy-terminal-display/sponza.png" alt="sponza" /></p>
+<p>it makes use of the <a href="https://exvacuum.dev/projects/bevy-headless-render/">bevy_headless_render</a> plugin for headless rendering, and then uses the <a href="https://exvacuum.dev/projects/bevy-dither-post-process/">bevy_dither_post_process</a> plugin to dither the captured frame before converting the black and white pixels into the appropriate characters and printing them to the terminal</p>
+<p>this plugin uses the <a rel="noopener" target="_blank" href="https://crates.io/crates/ratatui">ratatui</a> and <a rel="noopener" target="_blank" href="https://crates.io/crates/crossterm">crossterm</a> for rendering to the terminal</p>
+<p>this plugin manages a <code>TerminalInput</code> resource which keeps track of pressed keys</p>
+<p>this plugin also has facilities for creating and rendering ratatui widgets</p>
+<p>here's an example of a dialog box and option selection widget i've implemented in one of my WIP projects</p>
+<p><img src="https://exvacuum.dev/projects/bevy-terminal-display/dialog.png" alt="dialog widget" /></p>
+<p>in that project, i also make use of the <a href="https://exvacuum.dev/projects/bevy-outline-post-process/">bevy_outline_post_process</a> for additional visual contrast</p>
+
+
+
+
+			</div>
+		</section>
+	</body>
+</html>

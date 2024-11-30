@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8"/>
+		<title>silas</title>
+		<link rel="stylesheet" href="/style.css"/>
+		
+		  <link rel="alternate" type="application/rss+xml" title="RSS" href="https://exvacuum.dev/rss.xml">
+		
+	</head>
+	<body>
+		<section class="section">
+			<div class="container">
+				
+<a href="https://exvacuum.dev/projects/"> <- back to projects</a>
+<h1 class="title">
+	pomd
+	
+</h1>
+
+<p><strong>pomodoro timer daemon</strong></p>
+
+
+
+<p>category: utility</p>
+
+
+<p>finished: november 2023</p>
+
+
+<p>
+	languages:
+	
+		<span class="langcolor-rust">rust</span>
+	
+</p>
+
+
+<p>
+	github: 
+	
+	<a href="https://github.com/exvacuum&#x2F;pomd" target="_blank">exvacuum&#x2F;pomd</a>
+	
+	<a href="https://github.com/exvacuum&#x2F;pomc" target="_blank">exvacuum&#x2F;pomc</a>
+	
+</p>
+
+
+<p>
+	crates.io: 
+	
+	<a href="https://crates.io/crates/pomd" target="_blank">pomd</a>
+	
+	<a href="https://crates.io/crates/pomc" target="_blank">pomc</a>
+	
+</p>
+
+<br/>
+<p>this was a pretty simple rust project i did over the course of a couple days</p>
+<p>i had been wanting to experiment with d-bus on linux for a while and figured that writing a pomodoro daemon and client would be a good way to understand the basics of how d-bus interfaces work</p>
+<p>luckily i found the wonderful <a rel="noopener" target="_blank" href="https://crates.io/crates/zbus">zbus</a> crate which made everything for hooking up interface super simple</p>
+<p>i think the hardest thing about this project was trying to figure out how to accurately keep the time left in the timer</p>
+<p>as with many problems in rust the solution ended up being to find a <a rel="noopener" target="_blank" href="https://crates.io/crates/pausable_clock">crate</a> that implemented a "pausable clock" that worked similarly to a normal rust <code>std::time::Instant</code></p>
+<p>it's pretty configurable from what i remember</p>
+<p>i used this program when i was using <a rel="noopener" target="_blank" href="https://dwm.suckless.org">dwm</a> and wanted a daemon to integrate into my statusbar</p>
+<p><img src="https://exvacuum.dev/projects/pomd/statusbar.png" alt="pomd segment in my dwm statusbar" /></p>
+<p>now i use KDE plasma which has a pretty good pomodoro applet available, maybe in the future i could make some kind of widget that communicates with the daemon</p>
+
+
+
+
+			</div>
+		</section>
+	</body>
+</html>

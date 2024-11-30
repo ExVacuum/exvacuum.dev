@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8"/>
+		<title>silas</title>
+		<link rel="stylesheet" href="/style.css"/>
+		
+		  <link rel="alternate" type="application/rss+xml" title="RSS" href="https://exvacuum.dev/rss.xml">
+		
+	</head>
+	<body>
+		<section class="section">
+			<div class="container">
+				
+<a href="https://exvacuum.dev/projects/"> <- back to projects</a>
+<h1 class="title">
+	bevy_dither_post_process
+	
+</h1>
+
+
+
+<p>category: bevy plugin</p>
+
+
+
+<p>
+	languages:
+	
+		<span class="langcolor-rust">rust</span>
+	
+		<span class="langcolor-wgsl">wgsl</span>
+	
+</p>
+
+
+<p>
+	github: 
+	
+	<a href="https://github.com/exvacuum&#x2F;bevy_dither_post_process" target="_blank">exvacuum&#x2F;bevy_dither_post_process</a>
+	
+</p>
+
+
+<p>
+	crates.io: 
+	
+	<a href="https://crates.io/crates/bevy_dither_post_process" target="_blank">bevy_dither_post_process</a>
+	
+</p>
+
+<br/>
+<p>this plugin allows you to add a "monochromatic ordered dithering" post-processing effect to cameras in your bevy engine application</p>
+<p><img src="https://exvacuum.dev/projects/bevy-dither-post-process/level_3.png" alt="level 3" /></p>
+<p>the dithering is monochromatic (black &amp; white) and ordered (using the bayer method) (i'm gonna write a blog post about this soon)</p>
+<p>it can be configured with the "level" of dithering to perform (i.e. the size of the bayer matrix to use, where level <em>n</em> results in a matrix of size <em>2^(n+1)</em>)</p>
+<p><img src="https://exvacuum.dev/projects/bevy-dither-post-process/level_2.png" alt="level 2" />
+<img src="https://exvacuum.dev/projects/bevy-dither-post-process/level_4.png" alt="level 4" /></p>
+<p>i wrote this plugin to enhance the performance of my ongoing game project</p>
+<p>originally i did all the dithering on the CPU, and while it was not a huge performance drain due to the screen size being relatively small in the terminal, i figured it would be a good idea to convert it into a shader to take advantage of the GPU and parallelism</p>
+<p>since i was using ordered dithering anyways it was pretty easy to port over, since that kind of dithering is super parallelizable on account of not needing to know anything about any other fragment on the screen unlike some methods that provide superior visual quality</p>
+<p>the reason i chose ordered dithering though was that other methods produced too much "jitter" when applied to moving objects which was pretty disorienting</p>
+
+
+
+
+			</div>
+		</section>
+	</body>
+</html>

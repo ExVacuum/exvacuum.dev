@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://exvacuum.dev/</loc>
+    </url>
+    <url>
+        <loc>https://exvacuum.dev/blog/</loc>
+    </url>
+    <url>
+        <loc>https://exvacuum.dev/blog/blacklight-shader/</loc>
+        <lastmod>2024-11-29</lastmod>
+    </url>
+    <url>
+        <loc>https://exvacuum.dev/blog/new-website/</loc>
+        <lastmod>2024-08-13</lastmod>
+    </url>
+    <url>
+        <loc>https://exvacuum.dev/projects/</loc>
+    </url>
+    <url>
+        <loc>https://exvacuum.dev/projects/bevy-dither-post-process/</loc>
+    </url>
+    <url>
+        <loc>https://exvacuum.dev/projects/bevy-headless-render/</loc>
+    </url>
+    <url>
+        <loc>https://exvacuum.dev/projects/bevy-outline-post-process/</loc>
+    </url>
+    <url>
+        <loc>https://exvacuum.dev/projects/bevy-terminal-display/</loc>
+    </url>
+    <url>
+        <loc>https://exvacuum.dev/projects/pomd/</loc>
+    </url>
+</urlset>

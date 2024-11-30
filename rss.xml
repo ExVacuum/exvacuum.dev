@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+    <channel>
+      <title></title>
+      <link>https://exvacuum.dev</link>
+      <description></description>
+      <generator>Zola</generator>
+      <language>en</language>
+      <atom:link href="https://exvacuum.dev/rss.xml" rel="self" type="application/rss+xml"/>
+      <lastBuildDate>Fri, 29 Nov 2024 00:00:00 +0000</lastBuildDate>
+      <item>
+          <title>creating a blacklight shader</title>
+          <pubDate>Fri, 29 Nov 2024 00:00:00 +0000</pubDate>
+          <author>Silas Bartha</author>
+          <link>https://exvacuum.dev/blog/blacklight-shader/</link>
+          <guid>https://exvacuum.dev/blog/blacklight-shader/</guid>
+          <description xml:base="https://exvacuum.dev/blog/blacklight-shader/">&lt;p&gt;today i wanted to take a bit of time to write about a shader i implemented for my in-progress game project (more on that soon™)&lt;&#x2F;p&gt;
+&lt;p&gt;i wanted to create a &quot;blacklight&quot; effect, where specific lights could reveal part of the base texture. this shader works with &lt;strong&gt;spot lights&lt;&#x2F;strong&gt; only, but could be extended to work with point lights&lt;&#x2F;p&gt;
+&lt;p&gt;&lt;img src=&quot;https:&#x2F;&#x2F;exvacuum.dev&#x2F;blog&#x2F;blacklight-shader&#x2F;.&#x2F;blacklight.png&quot; alt=&quot;example of shader running, showing hidden writing on a wall&quot; &#x2F;&gt;;&lt;&#x2F;p&gt;
+&lt;p&gt;i wrote this shader in wgsl for a &lt;a rel=&quot;noopener&quot; target=&quot;_blank&quot; href=&quot;https:&#x2F;&#x2F;bevyengine.org&quot;&gt;bevy engine&lt;&#x2F;a&gt; project, but it should translate easily to other shading languages&lt;&#x2F;p&gt;
+&lt;p&gt;the finished shader can be found as part of &lt;a rel=&quot;noopener&quot; target=&quot;_blank&quot; href=&quot;https:&#x2F;&#x2F;github.com&#x2F;exvacuum&#x2F;bevy_blacklight_material&quot;&gt;this repo&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;shader-inputs&quot;&gt;shader inputs&lt;&#x2F;h2&gt;
+&lt;p&gt;for this shader, i wanted the following features:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;the number of lights should be dynamic&lt;&#x2F;li&gt;
+&lt;li&gt;the revealed portion of the object should match the area illuminated by each light
+&lt;ul&gt;
+&lt;li&gt;the falloff of the light over distance should match the fading of the object&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;for this to work i need the following information about each light:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;position (world space)&lt;&#x2F;li&gt;
+&lt;li&gt;direction (world space)&lt;&#x2F;li&gt;
+&lt;li&gt;range&lt;&#x2F;li&gt;
+&lt;li&gt;inner and outer angle
+&lt;ul&gt;
+&lt;li&gt;these will control the falloff of the light at its edges&lt;&#x2F;li&gt;
+&lt;li&gt;outer angle should be less than pi&#x2F;2 radians&lt;&#x2F;li&gt;
+&lt;li&gt;inner angle should be less than the outer angle&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;i also need some info from the vertex shader:&lt;&#x2F;p&gt;
+&lt;ul&gt;
+&lt;li&gt;position (&lt;strong&gt;world space!&lt;&#x2F;strong&gt;)&lt;&#x2F;li&gt;
+&lt;li&gt;uv&lt;&#x2F;li&gt;
+&lt;&#x2F;ul&gt;
+&lt;p&gt;bevy&#x27;s default pbr vertex shader provides this information, but as long as you can get this info into your fragment shader you should be good to go&lt;&#x2F;p&gt;
+&lt;p&gt;lastly i&#x27;ll take a base color texture and a sampler&lt;&#x2F;p&gt;
+&lt;p&gt;with all of that, i can start off the shader by setting up the inputs and fragment entry point:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;wgsl&quot; style=&quot;background-color:#2d353b;color:#d3c6aa;&quot; class=&quot;language-wgsl &quot;&gt;&lt;code class=&quot;language-wgsl&quot; data-lang=&quot;wgsl&quot;&gt;&lt;span&gt;#import bevy_pbr::forward_io::&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;VertexOutput&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;struct BlackLight &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;	position: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;vec3&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;	direction: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;vec3&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;	range: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;	inner_angle: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;	outer_angle: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span&gt;group(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span&gt;binding(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;var&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;storage&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt; lights: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;array&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;BlackLight&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span&gt;group(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span&gt;binding(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;var &lt;&#x2F;span&gt;&lt;span&gt;base_texture: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;texture_2d&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt;;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span&gt;group(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span&gt;binding(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;2&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;var &lt;&#x2F;span&gt;&lt;span&gt;base_sampler: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;sampler&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span&gt;fragment
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;fragment&lt;&#x2F;span&gt;&lt;span&gt;(
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;	&lt;&#x2F;span&gt;&lt;span&gt;in&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;VertexOutput&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;-&amp;gt; @&lt;&#x2F;span&gt;&lt;span&gt;location(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;vec4&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt; {
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;(bevy uses group 2 for custom shader bindings)&lt;&#x2F;p&gt;
+&lt;p&gt;since the number of lights is dynamic, i use a &lt;a rel=&quot;noopener&quot; target=&quot;_blank&quot; href=&quot;https:&#x2F;&#x2F;google.github.io&#x2F;tour-of-wgsl&#x2F;types&#x2F;arrays&#x2F;runtime-sized-arrays&#x2F;&quot;&gt;storage buffer&lt;&#x2F;a&gt; to store that information&lt;&#x2F;p&gt;
+&lt;h2 id=&quot;shader-calculations&quot;&gt;shader calculations&lt;&#x2F;h2&gt;
+&lt;p&gt;the first thing we&#x27;ll need to know is how close to looking at the fragment the light source is&lt;&#x2F;p&gt;
+&lt;p&gt;we can get this information using some interesting math:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;wgsl&quot; style=&quot;background-color:#2d353b;color:#d3c6aa;&quot; class=&quot;language-wgsl &quot;&gt;&lt;code class=&quot;language-wgsl&quot; data-lang=&quot;wgsl&quot;&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;light &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span&gt;lights[&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;];
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;light_to_fragment_direction &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;normalize&lt;&#x2F;span&gt;&lt;span&gt;(in&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;world_position&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;xyz &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;- &lt;&#x2F;span&gt;&lt;span&gt;light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;position&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;light_to_fragment_angle &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;acos&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;dot&lt;&#x2F;span&gt;&lt;span&gt;(light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;direction&lt;&#x2F;span&gt;&lt;span&gt;, light_to_fragment_direction));
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;the first step of this is taking the dot product of light direction and the direction from the light to the fragment&lt;&#x2F;p&gt;
+&lt;p&gt;since both direction vectors are normalized, the dot product will be between -1.0 and 1.0&lt;&#x2F;p&gt;
+&lt;p&gt;the dot product of two unit vectors is the cosine of the angle between them (&lt;a rel=&quot;noopener&quot; target=&quot;_blank&quot; href=&quot;https:&#x2F;&#x2F;math.libretexts.org&#x2F;Bookshelves&#x2F;Calculus&#x2F;Calculus_(OpenStax)&#x2F;12%3A_Vectors_in_Space&#x2F;12.03%3A_The_Dot_Product#Evaluating_a_Dot_Product&quot;&gt;proof here&lt;&#x2F;a&gt;)&lt;&#x2F;p&gt;
+&lt;p&gt;therefore, we take the arccosine of that dot product to get the angle between the light and the fragment&lt;&#x2F;p&gt;
+&lt;p&gt;once we have this angle we can plug it in to a falloff based on the angle properties of the light:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;wgsl&quot; style=&quot;background-color:#2d353b;color:#d3c6aa;&quot; class=&quot;language-wgsl &quot;&gt;&lt;code class=&quot;language-wgsl&quot; data-lang=&quot;wgsl&quot;&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;angle_inner_factor &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span&gt;light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span&gt;inner_angle&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;&#x2F;&lt;&#x2F;span&gt;&lt;span&gt;light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span&gt;outer_angle;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;angle_factor &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;linear_falloff_radius&lt;&#x2F;span&gt;&lt;span&gt;(light_to_fragment_angle &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;&#x2F; &lt;&#x2F;span&gt;&lt;span&gt;light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;outer_angle&lt;&#x2F;span&gt;&lt;span&gt;, angle_inner_factor)));
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;pre data-lang=&quot;wgsl&quot; style=&quot;background-color:#2d353b;color:#d3c6aa;&quot; class=&quot;language-wgsl &quot;&gt;&lt;code class=&quot;language-wgsl&quot; data-lang=&quot;wgsl&quot;&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;linear_falloff_radius&lt;&#x2F;span&gt;&lt;span&gt;(factor&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;, radius&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;-&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32 &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;	&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span&gt;factor &amp;lt; radius {
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;1.0&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;	} &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;else &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;1.0 &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;- &lt;&#x2F;span&gt;&lt;span&gt;(factor &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;- &lt;&#x2F;span&gt;&lt;span&gt;radius) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;&#x2F; &lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;1.0 &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;- &lt;&#x2F;span&gt;&lt;span&gt;radius);
+&lt;&#x2F;span&gt;&lt;span&gt;	}
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;next, we need to make sure the effect falls off properly over distance&lt;&#x2F;p&gt;
+&lt;p&gt;we can do this by getting the distance from the light to the fragment and normalizing it with the range of the light before plugging that into an inverse square falloff&lt;&#x2F;p&gt;
+&lt;p&gt;we&#x27;ll use squared distance to avoid expensive and unnecessary square root operations:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;wgsl&quot; style=&quot;background-color:#2d353b;color:#d3c6aa;&quot; class=&quot;language-wgsl &quot;&gt;&lt;code class=&quot;language-wgsl&quot; data-lang=&quot;wgsl&quot;&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;light_distance_squared &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;distance_squared&lt;&#x2F;span&gt;&lt;span&gt;(in&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;world_position&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;xyz&lt;&#x2F;span&gt;&lt;span&gt;, light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;position&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;distance_factor &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;inverse_falloff_radius&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;saturate&lt;&#x2F;span&gt;&lt;span&gt;(light_distance_squared &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;&#x2F; &lt;&#x2F;span&gt;&lt;span&gt;(light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;range &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;* &lt;&#x2F;span&gt;&lt;span&gt;light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;range&lt;&#x2F;span&gt;&lt;span&gt;)), &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0.5&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;pre data-lang=&quot;wgsl&quot; style=&quot;background-color:#2d353b;color:#d3c6aa;&quot; class=&quot;language-wgsl &quot;&gt;&lt;code class=&quot;language-wgsl&quot; data-lang=&quot;wgsl&quot;&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;distance_squared&lt;&#x2F;span&gt;&lt;span&gt;(a&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;vec3f&lt;&#x2F;span&gt;&lt;span&gt;, b&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;vec3f&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;-&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32 &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;	&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;vec &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span&gt;a &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;- &lt;&#x2F;span&gt;&lt;span&gt;b;
+&lt;&#x2F;span&gt;&lt;span&gt;	&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;dot&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;vec&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;vec&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;inverse_falloff&lt;&#x2F;span&gt;&lt;span&gt;(factor&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;-&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32 &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;	&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;pow&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;1.0 &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;- &lt;&#x2F;span&gt;&lt;span&gt;factor, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;2.0&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;inverse_falloff_radius&lt;&#x2F;span&gt;&lt;span&gt;(factor&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;, radius&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;-&amp;gt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32 &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;	&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;if &lt;&#x2F;span&gt;&lt;span&gt;factor &amp;lt; radius {
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;1.0&lt;&#x2F;span&gt;&lt;span&gt;;
+&lt;&#x2F;span&gt;&lt;span&gt;	} &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;else &lt;&#x2F;span&gt;&lt;span&gt;{
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;inverse_falloff&lt;&#x2F;span&gt;&lt;span&gt;((factor &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;- &lt;&#x2F;span&gt;&lt;span&gt;radius) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;&#x2F; &lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;1.0 &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;- &lt;&#x2F;span&gt;&lt;span&gt;radius));
+&lt;&#x2F;span&gt;&lt;span&gt;	}
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;now we&#x27;ll have a float multiplier between 0.0 and 1.0 for our angle and distance to the light&lt;&#x2F;p&gt;
+&lt;p&gt;we can get the resulting color by multiplying these with the base color texture:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;wgsl&quot; style=&quot;background-color:#2d353b;color:#d3c6aa;&quot; class=&quot;language-wgsl &quot;&gt;&lt;code class=&quot;language-wgsl&quot; data-lang=&quot;wgsl&quot;&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;base_color &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;textureSample&lt;&#x2F;span&gt;&lt;span&gt;(base_texture, base_sampler, in&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;uv&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;final_color &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span&gt;base_color &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;* &lt;&#x2F;span&gt;&lt;span&gt;angle_factor &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;* &lt;&#x2F;span&gt;&lt;span&gt;distance_factor;
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;this works for one light, but we need to refactor it to loop over all the provided blacklights:&lt;&#x2F;p&gt;
+&lt;pre data-lang=&quot;wgsl&quot; style=&quot;background-color:#2d353b;color:#d3c6aa;&quot; class=&quot;language-wgsl &quot;&gt;&lt;code class=&quot;language-wgsl&quot; data-lang=&quot;wgsl&quot;&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;@&lt;&#x2F;span&gt;&lt;span&gt;fragment
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;fn &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;fragment&lt;&#x2F;span&gt;&lt;span&gt;(
+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;	&lt;&#x2F;span&gt;&lt;span&gt;in&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;: &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;VertexOutput&lt;&#x2F;span&gt;&lt;span&gt;,
+&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;-&amp;gt; @&lt;&#x2F;span&gt;&lt;span&gt;location(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;) &lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;vec4&lt;&#x2F;span&gt;&lt;span&gt;&amp;lt;&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;f32&lt;&#x2F;span&gt;&lt;span&gt;&amp;gt; {
+&lt;&#x2F;span&gt;&lt;span&gt;	&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;base_color &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;textureSample&lt;&#x2F;span&gt;&lt;span&gt;(base_texture, base_sampler, in&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;uv&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;	&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;var &lt;&#x2F;span&gt;&lt;span&gt;final_color &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;vec4f&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0.0&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0.0&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0.0&lt;&#x2F;span&gt;&lt;span&gt;, &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0.0&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;	&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;for &lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;var &lt;&#x2F;span&gt;&lt;span&gt;i &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;u32&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0&lt;&#x2F;span&gt;&lt;span&gt;); i &amp;lt; &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;arrayLength&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;&amp;amp;&lt;&#x2F;span&gt;&lt;span&gt;lights); i &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span&gt;i&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;+&lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;1&lt;&#x2F;span&gt;&lt;span&gt;) {
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;light &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span&gt;lights[i];
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;light_to_fragment_direction &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;normalize&lt;&#x2F;span&gt;&lt;span&gt;(in&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;world_position&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;xyz &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;- &lt;&#x2F;span&gt;&lt;span&gt;light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;position&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;light_to_fragment_angle &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;acos&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;dot&lt;&#x2F;span&gt;&lt;span&gt;(light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;direction&lt;&#x2F;span&gt;&lt;span&gt;, light_to_fragment_direction));
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;angle_inner_factor &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span&gt;light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span&gt;inner_angle &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;&#x2F; &lt;&#x2F;span&gt;&lt;span&gt;light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span&gt;outer_angle;
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;angle_factor &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;linear_falloff_radius&lt;&#x2F;span&gt;&lt;span&gt;(light_to_fragment_angle &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;&#x2F; &lt;&#x2F;span&gt;&lt;span&gt;light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;outer_angle&lt;&#x2F;span&gt;&lt;span&gt;, angle_inner_factor);
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;light_distance_squared &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;distance_squared&lt;&#x2F;span&gt;&lt;span&gt;(in&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;world_position&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;xyz&lt;&#x2F;span&gt;&lt;span&gt;, light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;position&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;		&lt;&#x2F;span&gt;&lt;span style=&quot;color:#7fbbb3;&quot;&gt;let &lt;&#x2F;span&gt;&lt;span&gt;distance_factor &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;inverse_falloff_radius&lt;&#x2F;span&gt;&lt;span&gt;(&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;saturate&lt;&#x2F;span&gt;&lt;span&gt;(light_distance_squared &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;&#x2F; &lt;&#x2F;span&gt;&lt;span&gt;(light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;range &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;* &lt;&#x2F;span&gt;&lt;span&gt;light&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;.&lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;range&lt;&#x2F;span&gt;&lt;span&gt;)), &lt;&#x2F;span&gt;&lt;span style=&quot;color:#d699b6;&quot;&gt;0.5&lt;&#x2F;span&gt;&lt;span&gt;);
+&lt;&#x2F;span&gt;&lt;span&gt;
+&lt;&#x2F;span&gt;&lt;span&gt;		final_color &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;= &lt;&#x2F;span&gt;&lt;span style=&quot;color:#a7c080;&quot;&gt;saturate&lt;&#x2F;span&gt;&lt;span&gt;(final_color &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;+ &lt;&#x2F;span&gt;&lt;span&gt;base_color &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;* &lt;&#x2F;span&gt;&lt;span&gt;angle_factor &lt;&#x2F;span&gt;&lt;span style=&quot;color:#e69875;&quot;&gt;* &lt;&#x2F;span&gt;&lt;span&gt;distance_factor);
+&lt;&#x2F;span&gt;&lt;span&gt;	}
+&lt;&#x2F;span&gt;&lt;span&gt;	&lt;&#x2F;span&gt;&lt;span style=&quot;color:#e67e80;&quot;&gt;return &lt;&#x2F;span&gt;&lt;span&gt;final_color;
+&lt;&#x2F;span&gt;&lt;span&gt;}
+&lt;&#x2F;span&gt;&lt;&#x2F;code&gt;&lt;&#x2F;pre&gt;
+&lt;p&gt;and with that, the shader is pretty much complete&lt;&#x2F;p&gt;
+&lt;p&gt;you can view the full completed shader code &lt;a rel=&quot;noopener&quot; target=&quot;_blank&quot; href=&quot;https:&#x2F;&#x2F;github.com&#x2F;exvacuum&#x2F;bevy_blacklight_material&#x2F;blob&#x2F;master&#x2F;assets&#x2F;shaders&#x2F;blacklight_material.wgsl&quot;&gt;here&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;p&gt;have fun!&lt;&#x2F;p&gt;
+</description>
+      </item>
+      <item>
+          <title>time for a new website</title>
+          <pubDate>Tue, 13 Aug 2024 00:00:00 +0000</pubDate>
+          <author>Silas Bartha</author>
+          <link>https://exvacuum.dev/blog/new-website/</link>
+          <guid>https://exvacuum.dev/blog/new-website/</guid>
+          <description xml:base="https://exvacuum.dev/blog/new-website/">&lt;p&gt;dear witness,&lt;&#x2F;p&gt;
+&lt;p&gt;this is the first post on my new website, which i&#x27;m creating using the &lt;a rel=&quot;noopener&quot; target=&quot;_blank&quot; href=&quot;https:&#x2F;&#x2F;www.getzola.org&quot;&gt;zola&lt;&#x2F;a&gt; static site generator&lt;&#x2F;p&gt;
+&lt;p&gt;the old site used &lt;a href=&quot;https:&#x2F;&#x2F;exvacuum.dev&#x2F;blog&#x2F;new-website&#x2F;jekyllrb.com&quot;&gt;jekyll&lt;&#x2F;a&gt;, which i like a lot, and i&#x27;ve used it for over 5 years&lt;&#x2F;p&gt;
+&lt;br&#x2F;&gt;
+&lt;p&gt;i always found the ruby development environment to be a massive pain in the ass to set up, which is why zola was pretty appealing&lt;&#x2F;p&gt;
+&lt;p&gt;i also never use ruby for damn near anything, so i never keep it installed&lt;&#x2F;p&gt;
+&lt;p&gt;i&#x27;ve also just been meaning to change things up a little in general&lt;&#x2F;p&gt;
+&lt;p&gt;the whole early web 2.0 aesthetic is a lot of fun, but i&#x27;ve been feeling a bit more drawn towards minimalism lately&lt;&#x2F;p&gt;
+&lt;p&gt;besides, i was barely even sentient when that aesthetic was big&lt;&#x2F;p&gt;
+&lt;br&#x2F;&gt;
+&lt;p&gt;i might port over the old posts&lt;&#x2F;p&gt;
+&lt;p&gt;might not&lt;&#x2F;p&gt;
+&lt;p&gt;some of that stuff was pretty cool&lt;&#x2F;p&gt;
+&lt;p&gt;you can always check out the internet archive to see that stuff if you want: &lt;a rel=&quot;noopener&quot; target=&quot;_blank&quot; href=&quot;http:&#x2F;&#x2F;web.archive.org&#x2F;web&#x2F;20240226014714&#x2F;https:&#x2F;&#x2F;exvacuum.dev&#x2F;notes&quot;&gt;http:&#x2F;&#x2F;web.archive.org&#x2F;web&#x2F;20240226014714&#x2F;https:&#x2F;&#x2F;exvacuum.dev&#x2F;notes&lt;&#x2F;a&gt;&lt;&#x2F;p&gt;
+&lt;br&#x2F;&gt;
+&lt;p&gt;idk why i decided to write like this but it&#x27;s kind of funny&lt;&#x2F;p&gt;
+&lt;p&gt;a bit rambly&lt;&#x2F;p&gt;
+&lt;p&gt;it&#x27;s actually really annoying trying to intentionally write poorly&lt;&#x2F;p&gt;
+&lt;br&#x2F;&gt;
+&lt;p&gt;i do want to start writing more of these things because god i feel like i learn so much and don&#x27;t have anywhere to share it&lt;&#x2F;p&gt;
+&lt;p&gt;like i have my &lt;a rel=&quot;noopener&quot; target=&quot;_blank&quot; href=&quot;https:&#x2F;&#x2F;youtube.com&#x2F;@silasbartha&quot;&gt;youtube channel&lt;&#x2F;a&gt;, which is great when i can muster up the willpower to throw something together, but i don&#x27;t feel like my skills are developed enough to output videos at a rate or quality which would satisfy me&lt;&#x2F;p&gt;
+&lt;p&gt;i would be spending more time on videos about my projects than the projects themselves&lt;&#x2F;p&gt;
+&lt;br&#x2F;&gt;
+&lt;p&gt;i&#x27;m actually putting off my big personal project right now to do this lol&lt;&#x2F;p&gt;
+&lt;p&gt;but it&#x27;s important (i think)&lt;&#x2F;p&gt;
+&lt;p&gt;my site&#x27;s on my resume and i&#x27;m looking for jobs right now&lt;&#x2F;p&gt;
+&lt;p&gt;if you&#x27;re a potential employer reading this, first of all: i&#x27;m surprised you read this far!&lt;&#x2F;p&gt;
+&lt;p&gt;but also please hire me or something&lt;&#x2F;p&gt;
+&lt;p&gt;not for frontend web development obviously&lt;&#x2F;p&gt;
+&lt;br&#x2F;&gt;
+&lt;p&gt;thanks for reading this,&lt;&#x2F;p&gt;
+&lt;p&gt;- silas&lt;&#x2F;p&gt;
+</description>
+      </item>
+    </channel>
+</rss>

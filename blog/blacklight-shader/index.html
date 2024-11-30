@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8"/>
+		<title>silas</title>
+		<link rel="stylesheet" href="/style.css"/>
+		
+		  <link rel="alternate" type="application/rss+xml" title="RSS" href="https://exvacuum.dev/rss.xml">
+		
+	</head>
+	<body>
+		<section class="section">
+			<div class="container">
+				
+<a href="https://exvacuum.dev/blog/"> <- back to posts</a>
+<h1 class="title">
+	creating a blacklight shader
+</h1>
+<p class="subtitle"><strong>2024-11-29</strong></p>
+<p>today i wanted to take a bit of time to write about a shader i implemented for my in-progress game project (more on that soon™)</p>
+<p>i wanted to create a "blacklight" effect, where specific lights could reveal part of the base texture. this shader works with <strong>spot lights</strong> only, but could be extended to work with point lights</p>
+<p><img src="https://exvacuum.dev/blog/blacklight-shader/./blacklight.png" alt="example of shader running, showing hidden writing on a wall" />;</p>
+<p>i wrote this shader in wgsl for a <a rel="noopener" target="_blank" href="https://bevyengine.org">bevy engine</a> project, but it should translate easily to other shading languages</p>
+<p>the finished shader can be found as part of <a rel="noopener" target="_blank" href="https://github.com/exvacuum/bevy_blacklight_material">this repo</a></p>
+<h2 id="shader-inputs">shader inputs</h2>
+<p>for this shader, i wanted the following features:</p>
+<ul>
+<li>the number of lights should be dynamic</li>
+<li>the revealed portion of the object should match the area illuminated by each light
+<ul>
+<li>the falloff of the light over distance should match the fading of the object</li>
+</ul>
+</li>
+</ul>
+<p>for this to work i need the following information about each light:</p>
+<ul>
+<li>position (world space)</li>
+<li>direction (world space)</li>
+<li>range</li>
+<li>inner and outer angle
+<ul>
+<li>these will control the falloff of the light at its edges</li>
+<li>outer angle should be less than pi/2 radians</li>
+<li>inner angle should be less than the outer angle</li>
+</ul>
+</li>
+</ul>
+<p>i also need some info from the vertex shader:</p>
+<ul>
+<li>position (<strong>world space!</strong>)</li>
+<li>uv</li>
+</ul>
+<p>bevy's default pbr vertex shader provides this information, but as long as you can get this info into your fragment shader you should be good to go</p>
+<p>lastly i'll take a base color texture and a sampler</p>
+<p>with all of that, i can start off the shader by setting up the inputs and fragment entry point:</p>
+<pre data-lang="wgsl" style="background-color:#2d353b;color:#d3c6aa;" class="language-wgsl "><code class="language-wgsl" data-lang="wgsl"><span>#import bevy_pbr::forward_io::</span><span style="color:#7fbbb3;">VertexOutput</span><span>;
+</span><span>
+</span><span style="color:#7fbbb3;">struct BlackLight </span><span>{
+</span><span>	position: </span><span style="color:#7fbbb3;">vec3</span><span>&lt;</span><span style="color:#7fbbb3;">f32</span><span>&gt;,
+</span><span>	direction: </span><span style="color:#7fbbb3;">vec3</span><span>&lt;</span><span style="color:#7fbbb3;">f32</span><span>&gt;,
+</span><span>	range: </span><span style="color:#7fbbb3;">f32</span><span>,
+</span><span>	inner_angle: </span><span style="color:#7fbbb3;">f32</span><span>,
+</span><span>	outer_angle: </span><span style="color:#7fbbb3;">f32</span><span>,
+</span><span>}
+</span><span>
+</span><span style="color:#e69875;">@</span><span>group(</span><span style="color:#d699b6;">2</span><span>) </span><span style="color:#e69875;">@</span><span>binding(</span><span style="color:#d699b6;">0</span><span>) </span><span style="color:#7fbbb3;">var</span><span>&lt;</span><span style="color:#e67e80;">storage</span><span>&gt; lights: </span><span style="color:#7fbbb3;">array</span><span>&lt;</span><span style="color:#7fbbb3;">BlackLight</span><span>&gt;;
+</span><span style="color:#e69875;">@</span><span>group(</span><span style="color:#d699b6;">2</span><span>) </span><span style="color:#e69875;">@</span><span>binding(</span><span style="color:#d699b6;">1</span><span>) </span><span style="color:#7fbbb3;">var </span><span>base_texture: </span><span style="color:#7fbbb3;">texture_2d</span><span>&lt;</span><span style="color:#7fbbb3;">f32</span><span>&gt;;
+</span><span style="color:#e69875;">@</span><span>group(</span><span style="color:#d699b6;">2</span><span>) </span><span style="color:#e69875;">@</span><span>binding(</span><span style="color:#d699b6;">2</span><span>) </span><span style="color:#7fbbb3;">var </span><span>base_sampler: </span><span style="color:#7fbbb3;">sampler</span><span>;
+</span><span>
+</span><span style="color:#e69875;">@</span><span>fragment
+</span><span style="color:#e67e80;">fn </span><span style="color:#a7c080;">fragment</span><span>(
+</span><span style="color:#a7c080;">	</span><span>in</span><span style="color:#a7c080;">: </span><span style="color:#7fbbb3;">VertexOutput</span><span>,
+</span><span>) </span><span style="color:#e69875;">-&gt; @</span><span>location(</span><span style="color:#d699b6;">0</span><span>) </span><span style="color:#7fbbb3;">vec4</span><span>&lt;</span><span style="color:#7fbbb3;">f32</span><span>&gt; {
+</span><span>}
+</span></code></pre>
+<p>(bevy uses group 2 for custom shader bindings)</p>
+<p>since the number of lights is dynamic, i use a <a rel="noopener" target="_blank" href="https://google.github.io/tour-of-wgsl/types/arrays/runtime-sized-arrays/">storage buffer</a> to store that information</p>
+<h2 id="shader-calculations">shader calculations</h2>
+<p>the first thing we'll need to know is how close to looking at the fragment the light source is</p>
+<p>we can get this information using some interesting math:</p>
+<pre data-lang="wgsl" style="background-color:#2d353b;color:#d3c6aa;" class="language-wgsl "><code class="language-wgsl" data-lang="wgsl"><span style="color:#7fbbb3;">let </span><span>light </span><span style="color:#e69875;">= </span><span>lights[</span><span style="color:#d699b6;">0</span><span>];
+</span><span style="color:#7fbbb3;">let </span><span>light_to_fragment_direction </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">normalize</span><span>(in</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">world_position</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">xyz </span><span style="color:#e69875;">- </span><span>light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">position</span><span>);
+</span><span style="color:#7fbbb3;">let </span><span>light_to_fragment_angle </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">acos</span><span>(</span><span style="color:#a7c080;">dot</span><span>(light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">direction</span><span>, light_to_fragment_direction));
+</span></code></pre>
+<p>the first step of this is taking the dot product of light direction and the direction from the light to the fragment</p>
+<p>since both direction vectors are normalized, the dot product will be between -1.0 and 1.0</p>
+<p>the dot product of two unit vectors is the cosine of the angle between them (<a rel="noopener" target="_blank" href="https://math.libretexts.org/Bookshelves/Calculus/Calculus_(OpenStax)/12%3A_Vectors_in_Space/12.03%3A_The_Dot_Product#Evaluating_a_Dot_Product">proof here</a>)</p>
+<p>therefore, we take the arccosine of that dot product to get the angle between the light and the fragment</p>
+<p>once we have this angle we can plug it in to a falloff based on the angle properties of the light:</p>
+<pre data-lang="wgsl" style="background-color:#2d353b;color:#d3c6aa;" class="language-wgsl "><code class="language-wgsl" data-lang="wgsl"><span style="color:#7fbbb3;">let </span><span>angle_inner_factor </span><span style="color:#e69875;">= </span><span>light</span><span style="color:#e69875;">.</span><span>inner_angle</span><span style="color:#e69875;">/</span><span>light</span><span style="color:#e69875;">.</span><span>outer_angle;
+</span><span style="color:#7fbbb3;">let </span><span>angle_factor </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">linear_falloff_radius</span><span>(light_to_fragment_angle </span><span style="color:#e69875;">/ </span><span>light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">outer_angle</span><span>, angle_inner_factor)));
+</span></code></pre>
+<pre data-lang="wgsl" style="background-color:#2d353b;color:#d3c6aa;" class="language-wgsl "><code class="language-wgsl" data-lang="wgsl"><span style="color:#e67e80;">fn </span><span style="color:#a7c080;">linear_falloff_radius</span><span>(factor</span><span style="color:#a7c080;">: </span><span style="color:#7fbbb3;">f32</span><span>, radius</span><span style="color:#a7c080;">: </span><span style="color:#7fbbb3;">f32</span><span>) </span><span style="color:#e69875;">-&gt; </span><span style="color:#7fbbb3;">f32 </span><span>{
+</span><span>	</span><span style="color:#e67e80;">if </span><span>factor &lt; radius {
+</span><span>		</span><span style="color:#e67e80;">return </span><span style="color:#d699b6;">1.0</span><span>;
+</span><span>	} </span><span style="color:#e67e80;">else </span><span>{
+</span><span>		</span><span style="color:#e67e80;">return </span><span style="color:#d699b6;">1.0 </span><span style="color:#e69875;">- </span><span>(factor </span><span style="color:#e69875;">- </span><span>radius) </span><span style="color:#e69875;">/ </span><span>(</span><span style="color:#d699b6;">1.0 </span><span style="color:#e69875;">- </span><span>radius);
+</span><span>	}
+</span><span>}
+</span></code></pre>
+<p>next, we need to make sure the effect falls off properly over distance</p>
+<p>we can do this by getting the distance from the light to the fragment and normalizing it with the range of the light before plugging that into an inverse square falloff</p>
+<p>we'll use squared distance to avoid expensive and unnecessary square root operations:</p>
+<pre data-lang="wgsl" style="background-color:#2d353b;color:#d3c6aa;" class="language-wgsl "><code class="language-wgsl" data-lang="wgsl"><span style="color:#7fbbb3;">let </span><span>light_distance_squared </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">distance_squared</span><span>(in</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">world_position</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">xyz</span><span>, light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">position</span><span>);
+</span><span style="color:#7fbbb3;">let </span><span>distance_factor </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">inverse_falloff_radius</span><span>(</span><span style="color:#a7c080;">saturate</span><span>(light_distance_squared </span><span style="color:#e69875;">/ </span><span>(light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">range </span><span style="color:#e69875;">* </span><span>light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">range</span><span>)), </span><span style="color:#d699b6;">0.5</span><span>);
+</span></code></pre>
+<pre data-lang="wgsl" style="background-color:#2d353b;color:#d3c6aa;" class="language-wgsl "><code class="language-wgsl" data-lang="wgsl"><span style="color:#e67e80;">fn </span><span style="color:#a7c080;">distance_squared</span><span>(a</span><span style="color:#a7c080;">: </span><span style="color:#7fbbb3;">vec3f</span><span>, b</span><span style="color:#a7c080;">: </span><span style="color:#7fbbb3;">vec3f</span><span>) </span><span style="color:#e69875;">-&gt; </span><span style="color:#7fbbb3;">f32 </span><span>{
+</span><span>	</span><span style="color:#7fbbb3;">let </span><span style="color:#e67e80;">vec </span><span style="color:#e69875;">= </span><span>a </span><span style="color:#e69875;">- </span><span>b;
+</span><span>	</span><span style="color:#e67e80;">return </span><span style="color:#a7c080;">dot</span><span>(</span><span style="color:#e67e80;">vec</span><span>, </span><span style="color:#e67e80;">vec</span><span>);
+</span><span>}
+</span><span>
+</span><span style="color:#e67e80;">fn </span><span style="color:#a7c080;">inverse_falloff</span><span>(factor</span><span style="color:#a7c080;">: </span><span style="color:#7fbbb3;">f32</span><span>) </span><span style="color:#e69875;">-&gt; </span><span style="color:#7fbbb3;">f32 </span><span>{
+</span><span>	</span><span style="color:#e67e80;">return </span><span style="color:#a7c080;">pow</span><span>(</span><span style="color:#d699b6;">1.0 </span><span style="color:#e69875;">- </span><span>factor, </span><span style="color:#d699b6;">2.0</span><span>);
+</span><span>}
+</span><span>
+</span><span style="color:#e67e80;">fn </span><span style="color:#a7c080;">inverse_falloff_radius</span><span>(factor</span><span style="color:#a7c080;">: </span><span style="color:#7fbbb3;">f32</span><span>, radius</span><span style="color:#a7c080;">: </span><span style="color:#7fbbb3;">f32</span><span>) </span><span style="color:#e69875;">-&gt; </span><span style="color:#7fbbb3;">f32 </span><span>{
+</span><span>	</span><span style="color:#e67e80;">if </span><span>factor &lt; radius {
+</span><span>		</span><span style="color:#e67e80;">return </span><span style="color:#d699b6;">1.0</span><span>;
+</span><span>	} </span><span style="color:#e67e80;">else </span><span>{
+</span><span>		</span><span style="color:#e67e80;">return </span><span style="color:#a7c080;">inverse_falloff</span><span>((factor </span><span style="color:#e69875;">- </span><span>radius) </span><span style="color:#e69875;">/ </span><span>(</span><span style="color:#d699b6;">1.0 </span><span style="color:#e69875;">- </span><span>radius));
+</span><span>	}
+</span><span>}
+</span></code></pre>
+<p>now we'll have a float multiplier between 0.0 and 1.0 for our angle and distance to the light</p>
+<p>we can get the resulting color by multiplying these with the base color texture:</p>
+<pre data-lang="wgsl" style="background-color:#2d353b;color:#d3c6aa;" class="language-wgsl "><code class="language-wgsl" data-lang="wgsl"><span style="color:#7fbbb3;">let </span><span>base_color </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">textureSample</span><span>(base_texture, base_sampler, in</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">uv</span><span>);
+</span><span style="color:#7fbbb3;">let </span><span>final_color </span><span style="color:#e69875;">= </span><span>base_color </span><span style="color:#e69875;">* </span><span>angle_factor </span><span style="color:#e69875;">* </span><span>distance_factor;
+</span></code></pre>
+<p>this works for one light, but we need to refactor it to loop over all the provided blacklights:</p>
+<pre data-lang="wgsl" style="background-color:#2d353b;color:#d3c6aa;" class="language-wgsl "><code class="language-wgsl" data-lang="wgsl"><span style="color:#e69875;">@</span><span>fragment
+</span><span style="color:#e67e80;">fn </span><span style="color:#a7c080;">fragment</span><span>(
+</span><span style="color:#a7c080;">	</span><span>in</span><span style="color:#a7c080;">: </span><span style="color:#7fbbb3;">VertexOutput</span><span>,
+</span><span>) </span><span style="color:#e69875;">-&gt; @</span><span>location(</span><span style="color:#d699b6;">0</span><span>) </span><span style="color:#7fbbb3;">vec4</span><span>&lt;</span><span style="color:#7fbbb3;">f32</span><span>&gt; {
+</span><span>	</span><span style="color:#7fbbb3;">let </span><span>base_color </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">textureSample</span><span>(base_texture, base_sampler, in</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">uv</span><span>);
+</span><span>	</span><span style="color:#7fbbb3;">var </span><span>final_color </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">vec4f</span><span>(</span><span style="color:#d699b6;">0.0</span><span>, </span><span style="color:#d699b6;">0.0</span><span>, </span><span style="color:#d699b6;">0.0</span><span>, </span><span style="color:#d699b6;">0.0</span><span>);
+</span><span>	</span><span style="color:#e67e80;">for </span><span>(</span><span style="color:#7fbbb3;">var </span><span>i </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">u32</span><span>(</span><span style="color:#d699b6;">0</span><span>); i &lt; </span><span style="color:#a7c080;">arrayLength</span><span>(</span><span style="color:#e69875;">&amp;</span><span>lights); i </span><span style="color:#e69875;">= </span><span>i</span><span style="color:#e69875;">+</span><span style="color:#d699b6;">1</span><span>) {
+</span><span>		</span><span style="color:#7fbbb3;">let </span><span>light </span><span style="color:#e69875;">= </span><span>lights[i];
+</span><span>
+</span><span>		</span><span style="color:#7fbbb3;">let </span><span>light_to_fragment_direction </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">normalize</span><span>(in</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">world_position</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">xyz </span><span style="color:#e69875;">- </span><span>light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">position</span><span>);
+</span><span>		</span><span style="color:#7fbbb3;">let </span><span>light_to_fragment_angle </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">acos</span><span>(</span><span style="color:#a7c080;">dot</span><span>(light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">direction</span><span>, light_to_fragment_direction));
+</span><span>		</span><span style="color:#7fbbb3;">let </span><span>angle_inner_factor </span><span style="color:#e69875;">= </span><span>light</span><span style="color:#e69875;">.</span><span>inner_angle </span><span style="color:#e69875;">/ </span><span>light</span><span style="color:#e69875;">.</span><span>outer_angle;
+</span><span>		</span><span style="color:#7fbbb3;">let </span><span>angle_factor </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">linear_falloff_radius</span><span>(light_to_fragment_angle </span><span style="color:#e69875;">/ </span><span>light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">outer_angle</span><span>, angle_inner_factor);
+</span><span>
+</span><span>		</span><span style="color:#7fbbb3;">let </span><span>light_distance_squared </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">distance_squared</span><span>(in</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">world_position</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">xyz</span><span>, light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">position</span><span>);
+</span><span>		</span><span style="color:#7fbbb3;">let </span><span>distance_factor </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">inverse_falloff_radius</span><span>(</span><span style="color:#a7c080;">saturate</span><span>(light_distance_squared </span><span style="color:#e69875;">/ </span><span>(light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">range </span><span style="color:#e69875;">* </span><span>light</span><span style="color:#e69875;">.</span><span style="color:#a7c080;">range</span><span>)), </span><span style="color:#d699b6;">0.5</span><span>);
+</span><span>
+</span><span>		final_color </span><span style="color:#e69875;">= </span><span style="color:#a7c080;">saturate</span><span>(final_color </span><span style="color:#e69875;">+ </span><span>base_color </span><span style="color:#e69875;">* </span><span>angle_factor </span><span style="color:#e69875;">* </span><span>distance_factor);
+</span><span>	}
+</span><span>	</span><span style="color:#e67e80;">return </span><span>final_color;
+</span><span>}
+</span></code></pre>
+<p>and with that, the shader is pretty much complete</p>
+<p>you can view the full completed shader code <a rel="noopener" target="_blank" href="https://github.com/exvacuum/bevy_blacklight_material/blob/master/assets/shaders/blacklight_material.wgsl">here</a></p>
+<p>have fun!</p>
+
+
+			</div>
+		</section>
+	</body>
+</html>

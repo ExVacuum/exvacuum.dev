@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8"/>
+		<title>silas</title>
+		<link rel="stylesheet" href="/style.css"/>
+		
+		  <link rel="alternate" type="application/rss+xml" title="RSS" href="https://exvacuum.dev/rss.xml">
+		
+	</head>
+	<body>
+		<section class="section">
+			<div class="container">
+				
+<a href="https://exvacuum.dev/projects/"> <- back to projects</a>
+<h1 class="title">
+	bevy_outline_post_process
+	
+</h1>
+
+
+
+<p>category: bevy plugin</p>
+
+
+
+<p>
+	languages:
+	
+		<span class="langcolor-rust">rust</span>
+	
+		<span class="langcolor-wgsl">wgsl</span>
+	
+</p>
+
+
+<p>
+	github: 
+	
+	<a href="https://github.com/exvacuum&#x2F;bevy_outline_post_process" target="_blank">exvacuum&#x2F;bevy_outline_post_process</a>
+	
+</p>
+
+
+<p>
+	crates.io: 
+	
+	<a href="https://crates.io/crates/bevy_outline_post_process" target="_blank">bevy_outline_post_process</a>
+	
+</p>
+
+<br/>
+<p>this plugin allows you to add outlines to a camera as a post-processing effect in the bevy engine</p>
+<p><img src="https://exvacuum.dev/projects/bevy-outline-post-process/threshold_10.png" alt="0.1 threshold, 2.0 thickness" /></p>
+<p>the effect makes use of a normal prepass to determine surface normals of objects in view, and then uses the differences between those normal values to determine where outlines should occur</p>
+<p>the effect is configurable, you can change the thickness of the outlines and the threshold (how significant the difference between normals need to be for an outline to appear)</p>
+<p><img src="https://exvacuum.dev/projects/bevy-outline-post-process/threshold_10_thin.png" alt="0.1 threshold, 1.0 thickness" />
+<img src="https://exvacuum.dev/projects/bevy-outline-post-process/threshold_10_thick.png" alt="0.1 threshold, 4.0 thickness" /></p>
+<p>there's also an option to enable <em>adaptive outlines</em>, so that darker areas get outlined with white and brighter areas are outlined with black</p>
+<p><img src="https://exvacuum.dev/projects/bevy-outline-post-process/threshold_10_adaptive.png" alt="adaptive" /></p>
+<p>i created this effect to improve visual contrast in my game project, which is why i haven't added support for different colors</p>
+<p>you're free to add it yourself though, probably wouldn't be too hard</p>
+
+
+
+
+			</div>
+		</section>
+	</body>
+</html>
