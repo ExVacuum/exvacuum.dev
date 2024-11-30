@@ -1,14 +1,13 @@
 +++
 title = "creating a blacklight shader"
 date = 2024-11-29
-draft = true
 +++
 
 today i wanted to take a bit of time to write about a shader i implemented for my in-progress game project (more on that soon™)
 
 i wanted to create a "blacklight" effect, where specific lights could reveal part of the base texture. this shader works with **spot lights** only, but could be extended to work with point lights
 
-// TODO: image of finished shader
+![example of shader running, showing hidden writing on a wall](./blacklight.png);
 
 i wrote this shader in wgsl for a [bevy engine](https://bevyengine.org) project, but it should translate easily to other shading languages
 
@@ -84,16 +83,39 @@ the dot product of two unit vectors is the cosine of the angle between them ([pr
 
 therefore, we take the arccosine of that dot product to get the angle between the light and the fragment
 
-once we have this angle we can plug it in to an inverse square falloff based on the angle properties of the light:
+once we have this angle we can plug it in to a falloff based on the angle properties of the light:
 
 ```wgsl
 let angle_inner_factor = light.inner_angle/light.outer_angle;
-let angle_factor = inverse_falloff_radius(light_to_fragment_angle / light.outer_angle, angle_inner_factor)));
+let angle_factor = linear_falloff_radius(light_to_fragment_angle / light.outer_angle, angle_inner_factor)));
 ```
 ```wgsl
+fn linear_falloff_radius(factor: f32, radius: f32) -> f32 {
+	if factor < radius {
+		return 1.0;
+	} else {
+		return 1.0 - (factor - radius) / (1.0 - radius);
+	}
+}
+```
+next, we need to make sure the effect falls off properly over distance
+
+we can do this by getting the distance from the light to the fragment and normalizing it with the range of the light before plugging that into an inverse square falloff
+
+we'll use squared distance to avoid expensive and unnecessary square root operations:
+
+```wgsl
+let light_distance_squared = distance_squared(in.world_position.xyz, light.position);
+let distance_factor = inverse_falloff_radius(saturate(light_distance_squared / (light.range * light.range)), 0.5);
+```
+```wgsl
+fn distance_squared(a: vec3f, b: vec3f) -> f32 {
+	let vec = a - b;
+	return dot(vec, vec);
+}
+
 fn inverse_falloff(factor: f32) -> f32 {
-	let squared = factor * factor;
-	return 1.0/squared;
+	return pow(1.0 - factor, 2.0);
 }
 
 fn inverse_falloff_radius(factor: f32, radius: f32) -> f32 {
@@ -104,4 +126,44 @@ fn inverse_falloff_radius(factor: f32, radius: f32) -> f32 {
 	}
 }
 ```
+
+now we'll have a float multiplier between 0.0 and 1.0 for our angle and distance to the light
+
+we can get the resulting color by multiplying these with the base color texture:
+
+```wgsl
+let base_color = textureSample(base_texture, base_sampler, in.uv);
+let final_color = base_color * angle_factor * distance_factor;
+```
+
+this works for one light, but we need to refactor it to loop over all the provided blacklights:
+```wgsl
+@fragment
+fn fragment(
+	in: VertexOutput,
+) -> @location(0) vec4<f32> {
+	let base_color = textureSample(base_texture, base_sampler, in.uv);
+	var final_color = vec4f(0.0, 0.0, 0.0, 0.0);
+	for (var i = u32(0); i < arrayLength(&lights); i = i+1) {
+		let light = lights[i];
+
+		let light_to_fragment_direction = normalize(in.world_position.xyz - light.position);
+		let light_to_fragment_angle = acos(dot(light.direction, light_to_fragment_direction));
+		let angle_inner_factor = light.inner_angle / light.outer_angle;
+		let angle_factor = linear_falloff_radius(light_to_fragment_angle / light.outer_angle, angle_inner_factor);
+
+		let light_distance_squared = distance_squared(in.world_position.xyz, light.position);
+		let distance_factor = inverse_falloff_radius(saturate(light_distance_squared / (light.range * light.range)), 0.5);
+
+		final_color = saturate(final_color + base_color * angle_factor * distance_factor);
+	}
+	return final_color;
+}
+```
+
+and with that, the shader is pretty much complete
+
+you can view the full completed shader code [here](https://github.com/exvacuum/bevy_blacklight_material/blob/master/assets/shaders/blacklight_material.wgsl)
+
+have fun!
 
