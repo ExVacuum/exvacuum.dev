@@ -10,7 +10,7 @@ title = "hello"
 
 find me in other places
 
-- mail: [silas@exvacuum.dev](mailto:silas@exvacuum.dev)
-- github: [exvacuum](https://github.com/exvacuum)
+- mail:  <a href="mailto:silas@exvacuum.dev" rel="me">silas@exvacuum.dev</a>
+- github: <a href="https://github.com/exvacuum" rel="me">@exvacuum</a>
 - youtube: [@silasbartha](https://youtube.com/@silasbartha)
 - mastodon: <a href="https://furry.engineer/@exvacuum" rel="me">@exvacuum@furry.engineer</a>

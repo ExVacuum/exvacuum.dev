@@ -23,9 +23,22 @@
 
 /// }}}
 
+h1 {
+  margin: 0;
+}
+
+html {
+  background-color: everforest.$bg0;
+  height: 100%;
+}
+
 body {
   color: everforest.$fg;
   background-color: everforest.$bg1;
+  margin: 0 auto;
+  max-width: 800px;
+  padding: 10px;
+  min-height: 100%;
 }
 
 a {
@@ -38,7 +51,30 @@ img {
 }
 
 pre {
-  padding: 5px;
+  padding: 1rem;
+  overflow: auto;
+}
+/* The line numbers already provide some kind of left/right padding */
+pre[data-linenos] {
+  padding: 1rem 0;
+}
+pre table td {
+  padding: 0;
+}
+/* The line number cells */
+pre table td:nth-of-type(1) {
+  text-align: center;
+  user-select: none;
+}
+pre mark {
+  /* If you want your highlights to take the full width */
+  display: block;
+  /* The default background colour of a mark is bright yellow */
+  background-color: rgba(254, 252, 232, 0.9);
+}
+pre table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
 .wip-indicator {
