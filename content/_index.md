@@ -7,6 +7,7 @@ title = "hello"
 
 - [projects](@/projects/_index.md)
 - [blog](@/blog/_index.md)
+- [git](https://git.exvacuum.dev)
 
 find me in other places
 
