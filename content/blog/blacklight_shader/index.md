@@ -1,6 +1,8 @@
 +++
 title = "creating a blacklight shader"
 date = 2024-11-29
+[taxonomies]
+projects = ["bevy_blacklight_material"]
 +++
 
 today i wanted to take a bit of time to write about a shader i implemented for my in-progress game project (more on that soon™)

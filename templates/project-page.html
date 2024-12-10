@@ -26,6 +26,14 @@
 	{% endfor %}
 </p>
 {% endif %}
+{% if page.extra.git %}
+<p>
+	git: 
+	{% for repo in page.extra.git %}
+	<a href="https://git.exvacuum.dev/{{ repo }}" target="_blank">{{ repo }}</a>
+	{% endfor %}
+</p>
+{% endif %}
 {% if page.extra.github %}
 <p>
 	github: 
