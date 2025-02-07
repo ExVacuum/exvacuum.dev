@@ -10,6 +10,7 @@
     {% endif %}
     {% if page.extra.coverimage %}
         <meta property="og:image" content="{{ current_url | safe }}/{{ page.extra.coverimage | safe }}"/>
+        <meta name="twitter:card" content="summary_large_image"/>
     {% endif %}
 {% endblock meta_content %}
 
