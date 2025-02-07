@@ -1,5 +1,18 @@
 {% extends "base.html" %}
 
+{% block meta_content %}
+    {% if page.title %}
+    <meta property="og:title" content="soaos" />
+    <meta name="description" content="{{ page.title | safe }}" />
+    <meta property="og:description" content="{{ page.title | safe }}" />
+    {% else %}
+    <meta property="og:title" content="soaos" />
+    {% endif %}
+    {% if page.extra.coverimage %}
+        <meta property="og:image" content="{{ current_url | safe }}/{{ page.extra.coverimage | safe }}"/>
+    {% endif %}
+{% endblock meta_content %}
+
 {% block content %}
 <a href="{{ get_url(path='@/blog/_index.md') }}"> <- back to posts</a>
 <h1 class="title">

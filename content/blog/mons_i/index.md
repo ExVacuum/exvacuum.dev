@@ -1,6 +1,8 @@
 +++
 title = "mons (the mountain) - part i: i got sidetracked writing c for a week"
 date = 2025-02-06
+[extra]
+coverimage = "./mons.png"
 +++
 
 ## the valley
