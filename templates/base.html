@@ -15,7 +15,9 @@
 	<body>
 		<section class="section">
 			<div class="container">
-				{% block  content %} {% endblock %}
+            {% block  content %}
+            {{ section.content | safe }}
+            {% endblock %}
 			</div>
 		</section>
 	</body>
