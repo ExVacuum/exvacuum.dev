@@ -16,6 +16,7 @@
 		<section class="section">
 			<div class="container">
             {% block  content %}
+            <a href="{{ get_url(path='@/_index.md') }}"> <- back to landing</a>
             {{ section.content | safe }}
             {% endblock %}
 			</div>
