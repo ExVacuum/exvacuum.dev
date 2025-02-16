@@ -9,10 +9,10 @@ title = "hello"
 - [blog](@/blog/_index.md)
 - [some stuff i like](@/stuff_i_like/_index.md)
 - [git](https://git.exvacuum.dev)
-- [forum](https://forum.exvacuum.dev) (warning: javascript)
+- [forum](https://forum.exvacuum.dev)
 
 find me in other places
 
 - mail:  <a href="mailto:silas@exvacuum.dev" rel="me">silas@exvacuum.dev</a>
-- github: <a href="https://github.com/exvacuum" rel="me">@exvacuum</a>
-- youtube: [@silasbartha](https://youtube.com/@silasbartha)
+- github: <a href="https://github.com/soaosdev" rel="me">@soaosdev</a>
+- youtube: [@soaosdev](https://youtube.com/@soaosdev)
