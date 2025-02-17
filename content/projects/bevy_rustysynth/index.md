@@ -5,8 +5,8 @@ draft = true
 categories = ["bevy plugin"]
 languages = ["rust", "wgsl"]
 [extra]
-# github = ["exvacuum/bevy_blacklight_material"]
-# crates = ["bevy_blacklight_material"]
-# git = ["bevy_blacklight_material"]
+github = ["soaosdev/bevy_rustysynth"]
+crates = ["bevy_rustysynth"]
+git = ["bevy_rustysynth"]
 +++
 

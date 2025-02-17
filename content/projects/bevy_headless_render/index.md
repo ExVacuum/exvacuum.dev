@@ -4,7 +4,7 @@ title = "bevy_headless_render"
 categories = ["bevy plugin"]
 languages = ["rust"]
 [extra]
-github = ["exvacuum/bevy_headless_render"]
+github = ["soaosdev/bevy_headless_render"]
 crates = ["bevy_headless_render"]
 +++
 

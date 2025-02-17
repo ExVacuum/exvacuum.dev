@@ -78,7 +78,7 @@ mons_math/src/
 ├── vec3.c
 └── vec4.c
 ```
-(i won't get into implementation details too much in this post in the interest of brevity, but all the code is available on my [git server](https://git.exvacuum.dev/mons/))
+(i won't get into implementation details too much in this post in the interest of brevity, but all the code is available on my [git server](https://git.soaos.dev/mons/))
 
 i found writing the matrix and vector operations super satisfying in spite of the repetition for different dimensionalities
 

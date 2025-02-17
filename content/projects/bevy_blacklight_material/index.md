@@ -4,7 +4,7 @@ title = "bevy_blacklight_material"
 categories = ["bevy plugin"]
 languages = ["rust", "wgsl"]
 [extra]
-github = ["exvacuum/bevy_blacklight_material"]
+github = ["soaos/bevy_blacklight_material"]
 crates = ["bevy_blacklight_material"]
 git = ["bevy_blacklight_material"]
 +++

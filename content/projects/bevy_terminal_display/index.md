@@ -5,7 +5,7 @@ categories = ["bevy plugin"]
 languages = ["rust"]
 [extra]
 very_cool = true
-github = ["exvacuum/bevy_terminal_display"]
+github = ["soaosdev/bevy_terminal_display"]
 crates = ["bevy_terminal_display"]
 +++
 

@@ -8,8 +8,8 @@ title = "hello"
 - [projects](@/projects/_index.md)
 - [blog](@/blog/_index.md)
 - [some stuff i like](@/stuff_i_like/_index.md)
-- [git](https://git.exvacuum.dev)
-- [forum](https://forum.exvacuum.dev)
+- [git](https://git.soaos.dev)
+- [forum](https://forum.soaos.dev)
 
 find me in other places
 

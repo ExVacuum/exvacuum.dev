@@ -4,7 +4,7 @@ title = "bevy_outline_post_process"
 categories = ["bevy plugin"]
 languages = ["rust", "wgsl"]
 [extra]
-github = ["exvacuum/bevy_outline_post_process"]
+github = ["soaosdev/bevy_outline_post_process"]
 crates = ["bevy_outline_post_process"]
 +++
 

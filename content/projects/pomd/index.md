@@ -6,7 +6,7 @@ categories = ["utility"]
 languages = ["rust"]
 [extra]
 finished = "november 2023"
-github = ["exvacuum/pomd", "exvacuum/pomc"]
+github = ["soaosdev/pomd", "soaosdev/pomc"]
 crates = ["pomd", "pomc"]
 +++
 

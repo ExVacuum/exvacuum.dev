@@ -13,7 +13,7 @@ i wanted to create a "blacklight" effect, where specific lights could reveal par
 
 i wrote this shader in wgsl for a [bevy engine](https://bevyengine.org) project, but it should translate easily to other shading languages
 
-the finished shader can be found as part of [this repo](https://github.com/exvacuum/bevy_blacklight_material)
+the finished shader can be found as part of [this repo](https://github.com/soaosdev/bevy_blacklight_material)
 ## shader inputs
 
 for this shader, i wanted the following features:
@@ -165,7 +165,7 @@ fn fragment(
 
 and with that, the shader is pretty much complete
 
-you can view the full completed shader code [here](https://github.com/exvacuum/bevy_blacklight_material/blob/master/assets/shaders/blacklight_material.wgsl)
+you can view the full completed shader code [here](https://github.com/soaosdev/bevy_blacklight_material/blob/master/assets/shaders/blacklight_material.wgsl)
 
 have fun!
 
